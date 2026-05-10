@@ -1,0 +1,28 @@
+[toolchain]
+package_manager = "npm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+silence = "FdBmwEbm8MbJZnuFEEvtdbZDGh4vrthsLhFaZ6eFmGsb"
+
+[programs.devnet]
+silence = "FdBmwEbm8MbJZnuFEEvtdbZDGh4vrthsLhFaZ6eFmGsb"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[test]
+startup_wait = 120000
+
+[test.validator]
+bind_address = "127.0.0.1"
+
+[scripts]
+test = "cargo test -p silence"

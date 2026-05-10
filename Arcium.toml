@@ -1,0 +1,17 @@
+[localnet]
+nodes = 2
+nodes_ips = [
+  [172, 20, 0, 100],
+  [172, 20, 0, 101]
+]
+localnet_timeout_secs = 180
+backends = ["Cerberus"]
+
+# Cluster offsets for non-localnet testing.
+# Fill these after `arcium init-mxe` or `arcium deploy`.
+#
+[clusters.devnet]
+offset = 456
+
+# [clusters.mainnet]
+# offset = 0

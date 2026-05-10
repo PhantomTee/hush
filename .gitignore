@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+dist
+coverage
+.turbo
+*.tsbuildinfo
+target
+.env
+.env.local
+.anchor
+artifacts
