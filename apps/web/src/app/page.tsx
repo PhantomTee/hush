@@ -12,10 +12,7 @@ export default function LandingPage() {
       <section className="landing-frame">
         <nav className="landing-nav" aria-label="Primary">
           <div className="brand-lockup">
-            <span className="brand-glyph" aria-hidden="true">
-              S
-            </span>
-            <span>We are</span>
+            <span>Silence</span>
           </div>
           <div className="landing-links">
             <a href="#about">Who we are</a>
@@ -37,31 +34,46 @@ export default function LandingPage() {
         <section className="hero-stage">
           <div className="hero-copy-block">
             <p className="hero-kicker">Solana devnet / Arcium MXE active</p>
-            <h1>SILENCE</h1>
-            <div className="hero-slash one" aria-hidden="true" />
-            <div className="hero-slash two" aria-hidden="true" />
-            <p className="hero-copy">
-              Private payroll infrastructure shaping how teams pay people onchain.
-            </p>
-            <div className="hero-inline-actions">
-              {connected ? (
-                <Link className="button neon" href="/app">
-                  Enter app
-                </Link>
-              ) : (
-                <button className="button neon" onClick={connect} disabled={connecting}>
-                  {connecting ? "Connecting" : "Connect wallet"}
-                </button>
-              )}
-              <a className="video-link" href="#program">
-                <span>Play</span>
-                Scroll
-              </a>
-            </div>
+            <h1>
+              Private<br />
+              Payroll<br />
+              Onchain.
+            </h1>
           </div>
 
-          <div className="hero-tunnel" aria-hidden="true">
-            <div />
+          <div className="hero-bottom">
+            <div>
+              <p className="hero-copy">
+                Private payroll infrastructure shaping how teams pay people onchain.
+                Encrypted records, wallet-gated access, and zero demo layer.
+              </p>
+              <div className="hero-inline-actions">
+                {connected ? (
+                  <Link className="button neon" href="/app">
+                    Enter app
+                  </Link>
+                ) : (
+                  <button className="button neon" onClick={connect} disabled={connecting}>
+                    {connecting ? "Connecting" : "Connect wallet"}
+                  </button>
+                )}
+                <a className="button dark" href="#program">
+                  See how it works
+                </a>
+              </div>
+            </div>
+
+            <div className="hero-card" aria-hidden="true">
+              <span className="hero-card-label">Live devnet</span>
+              <p className="hero-card-title">
+                Arcium<br />
+                MXE Active
+              </p>
+              <p className="hero-card-meta">
+                {shortenAddress(SILENCE_PROGRAM_ID)}<br />
+                Arcium offset {ARCIUM_DEVNET_CLUSTER_OFFSET}
+              </p>
+            </div>
           </div>
         </section>
 
@@ -71,21 +83,30 @@ export default function LandingPage() {
       <section className="landing-info" id="program">
         <div>
           <h2>Encrypted records</h2>
-          <p>Amounts are submitted as encrypted references and hashes; the interface starts empty until real devnet data exists.</p>
+          <p>
+            Amounts are submitted as encrypted references and hashes.
+            The interface starts empty until real devnet data exists.
+          </p>
         </div>
         <div id="about">
           <h2>Wallet gated</h2>
-          <p>{connected && publicKey ? `Connected as ${shortenAddress(publicKey.toBase58())}.` : "Connect Phantom on devnet to enter the app."}</p>
+          <p>
+            {connected && publicKey
+              ? `Connected as ${shortenAddress(publicKey.toBase58())}.`
+              : "Connect Phantom on devnet to enter the app."}
+          </p>
         </div>
         <div id="price">
           <h2>Live devnet</h2>
           <p>
-            Program {shortenAddress(SILENCE_PROGRAM_ID)} / Arcium offset {ARCIUM_DEVNET_CLUSTER_OFFSET}.
+            Program {shortenAddress(SILENCE_PROGRAM_ID)} on Arcium offset {ARCIUM_DEVNET_CLUSTER_OFFSET}.
           </p>
         </div>
         <div id="why-us">
           <h2>No demo layer</h2>
-          <p>Every dashboard state is fetched from devnet or created by a signed wallet transaction.</p>
+          <p>
+            Every dashboard state is fetched from devnet or created by a signed wallet transaction.
+          </p>
         </div>
       </section>
     </main>

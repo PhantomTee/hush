@@ -165,7 +165,7 @@ function bytesFromHex(value: string, expectedLength: number) {
 
 function readU32LE(bytes: Uint8Array) {
   if (bytes.length < 4) throw new Error("Expected at least four bytes.");
-  return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+  return (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
 }
 
 function uiAmountToTokenUnits(value: number, decimals = 6) {
