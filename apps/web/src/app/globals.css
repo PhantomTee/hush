@@ -37,7 +37,7 @@ body {
   background: var(--ink);
   color: var(--cream);
   font-family: var(--font-montserrat), "Montserrat", ui-sans-serif, system-ui, sans-serif;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -103,9 +103,9 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.015em;
 }
 
 .brand-glyph {
@@ -136,9 +136,9 @@ p {
 .status-pill,
 .tx-link,
 .setup-steps a {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -155,9 +155,9 @@ p {
   padding: 0 22px;
   background: var(--ink);
   color: var(--cream);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   text-transform: uppercase;
   box-shadow: var(--shadow-soft);
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
@@ -212,8 +212,8 @@ p {
   color: var(--ink);
   font-size: clamp(84px, 25vw, 368px);
   font-weight: 900;
-  line-height: 0.78;
-  letter-spacing: -0.13em;
+  line-height: 0.84;
+  letter-spacing: -0.075em;
   text-transform: none;
   text-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
 }
@@ -223,13 +223,13 @@ p {
 }
 
 .hero-copy {
-  width: min(520px, 100%);
+  width: min(680px, 100%);
   margin-top: clamp(120px, 20vh, 230px);
   color: var(--ink);
-  font-size: clamp(24px, 3.2vw, 38px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.08em;
+  font-size: clamp(28px, 3.8vw, 52px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
 }
 
 .hero-inline-actions {
@@ -238,7 +238,7 @@ p {
 
 .video-link {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -263,29 +263,60 @@ p {
 
 .landing-info {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  padding: 1px;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
   background: var(--ink);
 }
 
 .landing-info > div {
-  min-height: 230px;
-  padding: 30px;
+  position: relative;
+  min-height: clamp(260px, 36vw, 430px);
+  padding: clamp(74px, 8vw, 112px) clamp(28px, 6vw, 76px) clamp(28px, 6vw, 76px);
   display: grid;
-  align-content: end;
-  gap: 12px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: end;
+  gap: clamp(22px, 6vw, 86px);
   background: var(--cream);
   color: var(--ink);
-  border-radius: 18px;
+  border-radius: 26px;
+  box-shadow: var(--shadow-soft);
 }
 
-.landing-info h2,
-.glass-panel h2 {
-  font-size: clamp(24px, 3vw, 38px);
+.landing-info > div:nth-child(even) {
+  background: var(--ink-2);
+  color: var(--cream);
+  border: 1px solid var(--line-light);
+}
+
+.landing-info > div::before {
+  content: "0" counter(info);
+  counter-increment: info;
+  position: absolute;
+  top: clamp(24px, 4vw, 42px);
+  left: clamp(28px, 6vw, 76px);
+  width: 52px;
+  height: 52px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 14px;
   font-weight: 900;
-  line-height: 0.96;
-  letter-spacing: -0.08em;
+}
+
+.landing-info h2 {
+  font-size: clamp(36px, 6vw, 92px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.055em;
+}
+
+.glass-panel h2 {
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.025em;
 }
 
 .landing-info p,
@@ -295,8 +326,21 @@ p {
   color: inherit;
   opacity: 0.68;
   line-height: 1.45;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
+}
+
+.landing-info {
+  counter-reset: info;
+}
+
+.landing-info p {
+  max-width: 620px;
+  justify-self: end;
+  font-size: clamp(20px, 2.4vw, 34px);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  opacity: 0.78;
 }
 
 .gate-page,
@@ -328,8 +372,8 @@ p {
 
 .gate-panel h1 {
   font-size: clamp(56px, 12vw, 120px);
-  line-height: 0.82;
-  letter-spacing: -0.12em;
+  line-height: 0.88;
+  letter-spacing: -0.065em;
   font-weight: 900;
 }
 
@@ -391,8 +435,8 @@ p {
   margin-bottom: 20px;
   font-size: clamp(64px, 13vw, 190px);
   font-weight: 900;
-  line-height: 0.8;
-  letter-spacing: -0.13em;
+  line-height: 0.86;
+  letter-spacing: -0.07em;
 }
 
 .hero-resume {
@@ -462,7 +506,7 @@ p {
   display: block;
   margin-bottom: 8px;
   color: var(--muted-light);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -495,7 +539,7 @@ input {
   outline: none;
   background: rgba(243, 234, 210, 0.08);
   color: var(--cream);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   box-shadow: inset 0 1px 0 rgba(243, 234, 210, 0.08), 0 12px 30px rgba(0, 0, 0, 0.18);
 }
@@ -609,8 +653,8 @@ input::placeholder {
 .setup-rail h1 {
   font-size: clamp(58px, 11vw, 132px);
   font-weight: 900;
-  line-height: 0.8;
-  letter-spacing: -0.13em;
+  line-height: 0.86;
+  letter-spacing: -0.07em;
 }
 
 .setup-steps {
@@ -649,8 +693,8 @@ input::placeholder {
   max-width: 720px;
   font-size: clamp(48px, 9vw, 118px);
   font-weight: 900;
-  line-height: 0.82;
-  letter-spacing: -0.13em;
+  line-height: 0.88;
+  letter-spacing: -0.07em;
 }
 
 @media (max-width: 1100px) {
@@ -722,6 +766,24 @@ input::placeholder {
   .glass-panel,
   .app-hero {
     padding: 22px 16px;
+  }
+
+  .landing-info > div {
+    min-height: 300px;
+    grid-template-columns: 1fr;
+    align-items: end;
+    padding-top: 84px;
+  }
+
+  .landing-info > div::before {
+    top: 20px;
+    left: 16px;
+  }
+
+  .landing-info p {
+    justify-self: start;
+    font-size: 21px;
+    line-height: 1.22;
   }
 
   .app-hero {
