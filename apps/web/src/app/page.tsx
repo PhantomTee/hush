@@ -15,20 +15,21 @@ export default function LandingPage() {
             <span className="brand-glyph" aria-hidden="true">
               S
             </span>
-            <span>SILENCE</span>
+            <span>We are</span>
           </div>
           <div className="landing-links">
-            <a href="#program">Program</a>
-            <a href="#price">Devnet</a>
-            <a href="#about">About</a>
+            <a href="#about">Who we are</a>
+            <a href="#program">Our work</a>
+            <a href="#price">What we do</a>
+            <a href="#why-us">Why us</a>
           </div>
           {connected ? (
             <Link className="nav-cta" href="/app">
-              Log in
+              Enter app
             </Link>
           ) : (
             <button className="nav-cta" onClick={connect} disabled={connecting}>
-              Log in
+              {connecting ? "Connecting" : "Connect"}
             </button>
           )}
         </nav>
@@ -36,15 +37,11 @@ export default function LandingPage() {
         <section className="hero-stage">
           <div className="hero-copy-block">
             <p className="hero-kicker">Solana devnet / Arcium MXE active</p>
-            <h1>
-              PRIVATE
-              <span>PAYROLL</span>
-              ONCHAIN
-            </h1>
+            <h1>SILENCE</h1>
             <div className="hero-slash one" aria-hidden="true" />
             <div className="hero-slash two" aria-hidden="true" />
             <p className="hero-copy">
-              Wallet-gated payroll with encrypted compensation logic, real devnet settlement, and no demo records.
+              Private payroll infrastructure shaping how teams pay people onchain.
             </p>
             <div className="hero-inline-actions">
               {connected ? (
@@ -58,7 +55,7 @@ export default function LandingPage() {
               )}
               <a className="video-link" href="#program">
                 <span>Play</span>
-                Watch flow
+                Scroll
               </a>
             </div>
           </div>
@@ -85,6 +82,10 @@ export default function LandingPage() {
           <p>
             Program {shortenAddress(SILENCE_PROGRAM_ID)} / Arcium offset {ARCIUM_DEVNET_CLUSTER_OFFSET}.
           </p>
+        </div>
+        <div id="why-us">
+          <h2>No demo layer</h2>
+          <p>Every dashboard state is fetched from devnet or created by a signed wallet transaction.</p>
         </div>
       </section>
     </main>

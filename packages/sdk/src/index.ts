@@ -172,7 +172,35 @@ function uiAmountToTokenUnits(value: number, decimals = 6) {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error("Payroll amount must be a non-negative number.");
   }
-  return BigInt(Math.floor(value * 10 ** decimals));
+  const raw = Math.round(value * 10 ** decimals);
+  if (!Number.isSafeInteger(raw) || raw < 0) {
+    throw new Error("Payroll amount is too large for a devnet token transaction.");
+  }
+  return BigInt(raw);
+}
+
+function uiAmountToRawString(value: number, decimals = 6) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("Amount must be a valid positive number.");
+  }
+  const raw = Math.round(value * 10 ** decimals);
+  if (!Number.isSafeInteger(raw) || raw <= 0) {
+    throw new Error("Amount is too large for a devnet token transaction.");
+  }
+  return raw.toString();
+}
+
+function boundedU32(value: number, label: string) {
+  if (!Number.isInteger(value) || value <= 0 || value > 4_294_967_295) {
+    throw new Error(`${label} must be a positive whole number.`);
+  }
+  return value;
+}
+
+function randomComputationOffset() {
+  const bytes = randomBytes(4);
+  const value = new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true);
+  return new BN(value || 1);
 }
 
 function devnetWsEndpoint(rpcUrl: string) {
@@ -587,7 +615,7 @@ export class SilenceDevnetClient {
     const mint = Keypair.generate();
     const lamports = await this.connection.getMinimumBalanceForRentExemption(MINT_SIZE);
     const adminTokenAccount = getAssociatedTokenAddressSync(mint.publicKey, this.wallet.publicKey);
-    const amount = BigInt(Math.floor(amountUi * 10 ** decimals));
+    const amount = BigInt(uiAmountToRawString(amountUi, decimals));
 
     const transaction = new Transaction().add(
       SystemProgram.createAccount({
@@ -700,7 +728,7 @@ export class SilenceDevnetClient {
         new BN(unixSeconds(input.periodStart)),
         new BN(unixSeconds(input.periodEnd)),
         await sha256Bytes(input.batchReference, 32),
-        input.employeeCount
+        boundedU32(input.employeeCount, "Employee count")
       )
       .accountsStrict({
         admin: this.wallet.publicKey,
@@ -726,7 +754,7 @@ export class SilenceDevnetClient {
     if (!Number.isFinite(input.amountUi) || input.amountUi <= 0) {
       throw new Error("Deposit amount must be a valid positive number.");
     }
-    const amount = new BN(Math.floor(input.amountUi * 10 ** decimals));
+    const amount = new BN(uiAmountToRawString(input.amountUi, decimals));
     const adminTokenAccount = getAssociatedTokenAddressSync(new PublicKey(input.mint), this.wallet.publicKey);
     const transaction = await (program.methods as any)
       .depositVault(amount)
@@ -791,7 +819,7 @@ export class SilenceDevnetClient {
       ],
       mxePublicKey
     );
-    const computationOffset = new BN(Array.from(randomBytes(8)), 10, "le");
+    const computationOffset = randomComputationOffset();
     const accounts = arciumAccounts(this.programId, computationOffset, "prepare_payroll_run");
     const transaction = await (program.methods as any)
       .queuePayrollComputation(
@@ -827,7 +855,7 @@ export class SilenceDevnetClient {
     const mxePublicKey = await getMXEPublicKeyWithRetry(provider, this.programId);
     const vaultBalance = await this.connection.getTokenAccountBalance(new PublicKey(input.vault), "confirmed");
     const encrypted = encryptValues([BigInt(vaultBalance.value.amount)], mxePublicKey);
-    const computationOffset = new BN(Array.from(randomBytes(8)), 10, "le");
+    const computationOffset = randomComputationOffset();
     const accounts = arciumAccounts(this.programId, computationOffset, "validate_payroll_run");
     const transaction = await (program.methods as any)
       .queueValidatePayrollRun(
@@ -879,7 +907,7 @@ export class SilenceDevnetClient {
   }): Promise<QueuePayrollComputationResult> {
     await this.ensureArciumDefinition("seal_employee_paystub");
     const program = await this.program();
-    const computationOffset = new BN(Array.from(randomBytes(8)), 10, "le");
+    const computationOffset = randomComputationOffset();
     const accounts = arciumAccounts(this.programId, computationOffset, "seal_employee_paystub");
     const transaction = await (program.methods as any)
       .queueSealEmployeePaystub(computationOffset)

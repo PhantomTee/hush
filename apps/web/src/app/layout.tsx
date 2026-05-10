@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Red_Hat_Display } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-const redHatDisplay = Red_Hat_Display({
-  variable: "--font-red-hat-display",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
   weight: ["500", "600", "700", "800", "900"]
 });
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={redHatDisplay.variable}>
+    <html lang="en" className={montserrat.variable}>
       <body>{children}</body>
     </html>
   );
