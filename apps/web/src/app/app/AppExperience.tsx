@@ -82,11 +82,8 @@ export function AppExperience({ view }: { view: AppView }) {
   const [error, setError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<ExplorerTransaction[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [createdMint, setCreatedMint] = useState<{ mint: string; adminTokenAccount: string; amountUi: number } | null>(null);
   const [queuedComputations, setQueuedComputations] = useState<Record<string, QueuePayrollComputationResult>>({});
   const [notice, setNotice] = useState<string | null>(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
 
@@ -117,28 +114,10 @@ export function AppExperience({ view }: { view: AppView }) {
     }
   }, [client]);
 
-  const setupStorageKey = publicKey ? `silence:onboarding:${publicKey.toBase58()}` : "silence:onboarding";
-  const dismissStorageKey = `${setupStorageKey}:dismissed`;
-
   useEffect(() => {
     if (!connected || !publicKey) return;
-    setCreatedMint(null);
     setQueuedComputations({});
-    const savedMint = window.localStorage.getItem(setupStorageKey);
-    if (savedMint) {
-      try {
-        const parsed = JSON.parse(savedMint) as { mint?: string; adminTokenAccount?: string; amountUi?: number };
-        if (parsed.mint && parsed.adminTokenAccount && Number.isFinite(parsed.amountUi)) {
-          setCreatedMint({ mint: parsed.mint, adminTokenAccount: parsed.adminTokenAccount, amountUi: parsed.amountUi ?? 0 });
-        } else {
-          window.localStorage.removeItem(setupStorageKey);
-        }
-      } catch {
-        window.localStorage.removeItem(setupStorageKey);
-      }
-    }
-    setOnboardingDismissed(window.localStorage.getItem(dismissStorageKey) === "true");
-  }, [connected, dismissStorageKey, publicKey, setupStorageKey]);
+  }, [connected, publicKey]);
 
   useEffect(() => {
     if (connected && client) {
@@ -146,41 +125,11 @@ export function AppExperience({ view }: { view: AppView }) {
     } else {
       setState(emptyState);
       setLoadState("idle");
-      setCreatedMint(null);
       setQueuedComputations({});
-      setOnboardingOpen(false);
-      setOnboardingDismissed(false);
     }
   }, [client, connected, refresh]);
 
-  const onboardingStep = !state.organization
-    ? createdMint
-      ? "organization"
-      : "mint"
-    : !state.arciumDefinitionsReady
-      ? "definitions"
-      : state.tokenBalance !== null && state.tokenBalance <= 0
-        ? "deposit"
-        : null;
-  const onboardingIncomplete = onboardingStep !== null;
-
-  useEffect(() => {
-    if (connected && onboardingIncomplete && !onboardingDismissed) {
-      setOnboardingOpen(true);
-    }
-  }, [connected, onboardingDismissed, onboardingIncomplete]);
-
-  function dismissOnboarding() {
-    setOnboardingOpen(false);
-    setOnboardingDismissed(true);
-    window.localStorage.setItem(dismissStorageKey, "true");
-  }
-
-  function resumeOnboarding() {
-    setOnboardingDismissed(false);
-    window.localStorage.removeItem(dismissStorageKey);
-    setOnboardingOpen(true);
-  }
+  const setupIncomplete = !state.organization || !state.arciumDefinitionsReady || (state.tokenBalance !== null && state.tokenBalance <= 0);
 
   async function runAction(label: string, action: () => Promise<ExplorerTransaction | null>) {
     setBusyAction(label);
@@ -199,30 +148,6 @@ export function AppExperience({ view }: { view: AppView }) {
     } finally {
       setBusyAction(null);
     }
-  }
-
-  async function createMint() {
-    if (!client) return;
-    await runAction("mint", async () => {
-      const result = await client.createTestMint();
-      const mintState = { mint: result.mint, adminTokenAccount: result.adminTokenAccount, amountUi: result.amountUi };
-      setCreatedMint(mintState);
-      window.localStorage.setItem(setupStorageKey, JSON.stringify(mintState));
-      return result;
-    });
-  }
-
-  async function initializeOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!client) return;
-    const form = new FormData(event.currentTarget);
-    const name = String(form.get("name") ?? "").trim();
-    const mint = String(form.get("mint") ?? "").trim();
-    await runAction("organization", async () => {
-      const result = await client.initializeOrganization(name, mint);
-      window.localStorage.removeItem(setupStorageKey);
-      return result;
-    });
   }
 
   async function addEmployee(event: FormEvent<HTMLFormElement>) {
@@ -254,29 +179,6 @@ export function AppExperience({ view }: { view: AppView }) {
         employeeCount: readAmount(form, "employeeCount")
       })
     );
-  }
-
-  async function depositVault(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!client || !state.organization) return;
-    const form = new FormData(event.currentTarget);
-    await runAction("deposit", async () =>
-      client.depositVault({
-        organization: state.organizationAddress,
-        mint: state.organization!.usdcMint,
-        vault: state.vaultAddress,
-        amountUi: readAmount(form, "amount")
-      })
-    );
-  }
-
-  async function initializeArciumDefinitions() {
-    if (!client) return;
-    await runAction("definitions", async () => {
-      const result = await client.initializeArciumDefinitions();
-      setNotice(result ? "Arcium payroll definitions initialized." : "Arcium payroll definitions are already initialized.");
-      return result;
-    });
   }
 
   async function queuePayrollComputation(event: FormEvent<HTMLFormElement>, run: PayrollRun) {
@@ -423,68 +325,6 @@ export function AppExperience({ view }: { view: AppView }) {
 
   return (
     <main className="app-shell">
-      {onboardingOpen && onboardingIncomplete ? (
-        <section className="onboarding-backdrop" onMouseDown={dismissOnboarding}>
-          <div className="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-topline">
-              <span>Initialization</span>
-              <button type="button" onClick={dismissOnboarding}>
-                Close
-              </button>
-            </div>
-            {onboardingStep === "mint" ? (
-              <div className="modal-stage">
-                <p className="hero-kicker">Step 1 / Test mint</p>
-                <h2 id="onboarding-title">Create payroll token supply</h2>
-                <p className="muted">This creates a devnet SPL test mint and mints 100,000 payroll tokens to your connected wallet.</p>
-                <button className="button neon" type="button" onClick={createMint} disabled={busyAction === "mint"}>
-                  {busyAction === "mint" ? "Waiting for signature" : "Create test mint"}
-                </button>
-              </div>
-            ) : null}
-            {onboardingStep === "organization" ? (
-              <form className="modal-stage" onSubmit={initializeOrganization}>
-                <p className="hero-kicker">Step 2 / Organization</p>
-                <h2 id="onboarding-title">Initialize the payroll workspace</h2>
-                <p className="muted">The organization and vault are created on-chain using the mint from the previous step.</p>
-                <Field label="Organization name">
-                  <input name="name" required placeholder="SILENCE Ops" maxLength={48} defaultValue="SILENCE Ops" />
-                </Field>
-                <Field label="SPL test mint">
-                  <input name="mint" required defaultValue={createdMint?.mint ?? ""} placeholder="Paste the devnet mint address" />
-                </Field>
-                {createdMint ? <p className="success-line">Minted {createdMint.amountUi.toLocaleString()} tokens.</p> : null}
-                <button className="button neon" disabled={busyAction === "organization"}>
-                  {busyAction === "organization" ? "Waiting for signature" : "Initialize organization"}
-                </button>
-              </form>
-            ) : null}
-            {onboardingStep === "definitions" ? (
-              <div className="modal-stage">
-                <p className="hero-kicker">Step 3 / Arcium</p>
-                <h2 id="onboarding-title">Initialize computation definitions</h2>
-                <p className="muted">This prepares the payroll circuits for prepare, validation, and paystub sealing on the deployed MXE.</p>
-                <button className="button neon" type="button" onClick={initializeArciumDefinitions} disabled={busyAction === "definitions"}>
-                  {busyAction === "definitions" ? "Waiting for signature" : "Initialize Arcium definitions"}
-                </button>
-              </div>
-            ) : null}
-            {onboardingStep === "deposit" ? (
-              <form className="modal-stage" onSubmit={depositVault}>
-                <p className="hero-kicker">Step 4 / Vault</p>
-                <h2 id="onboarding-title">Fund the payroll vault</h2>
-                <p className="muted">Move test payroll tokens from your wallet into the organization vault before creating real payroll runs.</p>
-                <Field label="Deposit amount">
-                  <input name="amount" min="0" step="0.000001" type="number" placeholder="50000" required />
-                </Field>
-                <button className="button neon" disabled={busyAction === "deposit"}>
-                  {busyAction === "deposit" ? "Waiting for signature" : "Deposit to vault"}
-                </button>
-              </form>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
       <nav className="app-nav">
         <Link className="brand-lockup" href="/">
           <span className="brand-glyph">S</span>
@@ -522,10 +362,10 @@ export function AppExperience({ view }: { view: AppView }) {
           <p className="hero-kicker">Program {shortenAddress(SILENCE_PROGRAM_ID)} / Arcium {ARCIUM_DEVNET_CLUSTER_OFFSET}</p>
           <h1>{pageTitle}</h1>
           <p>{pageCopy}</p>
-          {onboardingIncomplete ? (
-            <button className="button neon hero-resume" type="button" onClick={resumeOnboarding}>
-              Resume initialization
-            </button>
+          {setupIncomplete ? (
+            <Link className="button neon hero-resume" href="/app/setup">
+              Continue setup
+            </Link>
           ) : null}
         </div>
         <div className="grid-portal" aria-hidden="true">
@@ -580,17 +420,17 @@ export function AppExperience({ view }: { view: AppView }) {
                 </div>
               </div>
               {!state.arciumDefinitionsReady ? (
-                <button className="button dark" type="button" onClick={resumeOnboarding}>
-                  Resume initialization
-                </button>
+                <Link className="button dark" href="/app/setup">
+                  Continue setup
+                </Link>
               ) : null}
             </div>
           ) : (
             <div className="empty-action">
-              <p className="muted">The setup flow is guided in one popup so the workspace stays clean.</p>
-              <button className="button neon" type="button" onClick={resumeOnboarding}>
-                Start initialization
-              </button>
+              <p className="muted">Setup now lives on dedicated pages and resumes from the last completed on-chain step.</p>
+              <Link className="button neon" href="/app/setup">
+                Start setup
+              </Link>
             </div>
           )}
         </article>
@@ -611,9 +451,9 @@ export function AppExperience({ view }: { view: AppView }) {
             </div>
           </div>
           {state.organization && state.tokenBalance !== null && state.tokenBalance <= 0 ? (
-            <button className="button dark" type="button" onClick={resumeOnboarding}>
-              Resume funding
-            </button>
+            <Link className="button dark" href="/app/setup">
+              Continue funding
+            </Link>
           ) : null}
         </article>
         ) : null}
