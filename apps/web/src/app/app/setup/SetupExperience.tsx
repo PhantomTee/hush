@@ -72,6 +72,7 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [latestTx, setLatestTx] = useState<ExplorerTransaction | null>(null);
   const [createdMint, setCreatedMint] = useState<{ mint: string; adminTokenAccount: string; amountUi: number } | null>(null);
+  const [mxeAuthority, setMxeAuthority] = useState<string | null>(null);
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
   const setupStorageKey = publicKey ? `silence:setup:${publicKey.toBase58()}` : "silence:setup";
@@ -82,7 +83,11 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
     setLoadState("loading");
     setError(null);
     try {
-      const organizationState = await client.getOrganization();
+      const [organizationState, authority] = await Promise.all([
+        client.getOrganization(),
+        client.getMxeAuthority().then(pk => pk?.toBase58() ?? null).catch(() => null)
+      ]);
+      setMxeAuthority(authority);
       const [tokenBalance, definitionsStatus] = organizationState.account
         ? await Promise.all([client.getAdminTokenBalance(organizationState.account.usdcMint), client.getArciumDefinitionsStatus()])
         : [null, { initialized: false }];
@@ -337,7 +342,37 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
               <p className="hero-kicker">Prepare Arcium circuits</p>
               <h2>Initialize computation definitions</h2>
               <p className="muted">This initializes the prepare, validate, and paystub sealing definitions for program {shortenAddress(SILENCE_PROGRAM_ID)} on Arcium offset {ARCIUM_DEVNET_CLUSTER_OFFSET}.</p>
-              <button className="button neon" type="button" onClick={initializeArciumDefinitions} disabled={busyAction === "definitions" || currentStep !== "definitions"}>
+              {mxeAuthority ? (
+                <div className="facts-grid">
+                  <div>
+                    <span>Required wallet</span>
+                    <strong title={mxeAuthority}>{shortenAddress(mxeAuthority)}</strong>
+                  </div>
+                  <div>
+                    <span>Connected wallet</span>
+                    <strong className={publicKey && publicKey.toBase58() === mxeAuthority ? "success-line" : "alert-inline"}>
+                      {publicKey ? shortenAddress(publicKey.toBase58()) : "—"}
+                      {publicKey && publicKey.toBase58() !== mxeAuthority ? " ✗ wrong wallet" : publicKey ? " ✓" : ""}
+                    </strong>
+                  </div>
+                </div>
+              ) : null}
+              {mxeAuthority && publicKey && publicKey.toBase58() !== mxeAuthority ? (
+                <p className="alert">
+                  Switch Phantom to the deployer wallet ({shortenAddress(mxeAuthority)}) to complete this step.
+                  This is the wallet that deployed the SILENCE program and registered its Arcium MXE.
+                </p>
+              ) : null}
+              <button
+                className="button neon"
+                type="button"
+                onClick={initializeArciumDefinitions}
+                disabled={
+                  busyAction === "definitions" ||
+                  currentStep !== "definitions" ||
+                  (mxeAuthority !== null && publicKey !== null && publicKey.toBase58() !== mxeAuthority)
+                }
+              >
                 {busyAction === "definitions" ? "Waiting for signature" : "Initialize definitions"}
               </button>
             </div>

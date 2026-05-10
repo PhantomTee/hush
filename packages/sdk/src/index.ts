@@ -398,6 +398,25 @@ function toBn(value: unknown) {
   return new BN(0);
 }
 
+/**
+ * Read the management authority stored in the on-chain MXE account.
+ * Arcium's InitComputationDefinition requires the signer to equal this value.
+ * Returns null when the MXE account has no authority set (open to anyone).
+ */
+async function getMxeAuthority(provider: AnchorProvider, programId: PublicKey): Promise<PublicKey | null> {
+  const arcium = getArciumProgram(provider);
+  const mxeAddress = getMXEAccAddress(programId);
+  const mxe = (await arcium.account.mxeAccount.fetch(mxeAddress)) as any;
+  // The authority field is Option<Pubkey> — present as a PublicKey object or null/undefined
+  const raw = mxe.authority ?? mxe.authority;
+  if (!raw) return null;
+  try {
+    return new PublicKey(raw);
+  } catch {
+    return null;
+  }
+}
+
 async function arciumDefinitionAccounts(provider: AnchorProvider, programId: PublicKey, circuitName: string) {
   const arcium = getArciumProgram(provider);
   const mxeAccount = getMXEAccAddress(programId);
@@ -770,9 +789,26 @@ export class SilenceDevnetClient {
     return { signature, explorerUrl: explorerUrl(signature) };
   }
 
+  async getMxeAuthority(): Promise<PublicKey | null> {
+    return getMxeAuthority(this.provider(), this.programId);
+  }
+
   async initializeArciumDefinitions(): Promise<ExplorerTransaction | null> {
     const program = await this.program();
     const provider = this.provider();
+
+    // Preflight: Arcium's InitComputationDefinition requires the signer to equal
+    // the MXE account's authority. Check before building the transaction so the
+    // user sees a readable error instead of an opaque simulation failure.
+    const authority = await getMxeAuthority(provider, this.programId);
+    if (authority && !authority.equals(this.wallet.publicKey)) {
+      throw new Error(
+        `This setup step must be signed by the program deployer wallet (${shortenAddress(authority.toBase58())}). ` +
+          `Switch Phantom to that wallet and try again. ` +
+          `Connected: ${shortenAddress(this.wallet.publicKey.toBase58())} · Required: ${authority.toBase58()}`
+      );
+    }
+
     const definitions = [
       ["prepare_payroll_run", "initPreparePayrollRunCompDef"],
       ["validate_payroll_run", "initValidatePayrollRunCompDef"],

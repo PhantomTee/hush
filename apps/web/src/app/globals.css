@@ -723,7 +723,8 @@ input::placeholder {
   font-size: 13px;
 }
 
-.error-line {
+.error-line,
+.alert-inline {
   color: var(--danger);
   font-weight: 900;
   font-size: 13px;
