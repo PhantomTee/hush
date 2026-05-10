@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${montserrat.variable} ${barlowCondensed.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${montserrat.variable} ${barlowCondensed.variable}`}>
       <body>{children}</body>
     </html>
   );

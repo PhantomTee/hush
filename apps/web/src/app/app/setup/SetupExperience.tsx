@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTheme } from "../../theme";
 import {
   ARCIUM_DEVNET_CLUSTER_OFFSET,
   SILENCE_DEVNET_RPC,
@@ -65,6 +66,8 @@ function readAmount(form: FormData, key: string) {
 export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<SetupStep, "complete"> }) {
   const router = useRouter();
   const { connected, connecting, publicKey, wallet, error: walletError, connect, disconnect } = usePhantomWallet();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [state, setState] = useState<SetupState>(emptySetupState);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -140,11 +143,16 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
     }
   }, [client, connected, refresh]);
 
+  // The definitions step is a one-time platform-level action that only the deployer
+  // wallet (MXE authority) can sign. Once completed it applies to everyone.
+  // Non-deployer wallets skip it — they go straight to deposit once their org is created.
+  const isDeployer = !!(mxeAuthority && publicKey && publicKey.toBase58() === mxeAuthority);
+
   const currentStep: SetupStep = !state.organization
     ? createdMint
       ? "organization"
       : "mint"
-    : !state.arciumDefinitionsReady
+    : !state.arciumDefinitionsReady && isDeployer
       ? "definitions"
       : state.tokenBalance !== null && state.tokenBalance <= 0
         ? "deposit"
@@ -272,6 +280,29 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
 
   return (
     <main className="app-shell setup-shell">
+      {menuOpen && (
+        <div className="mobile-menu-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-menu-header" onClick={(e) => e.stopPropagation()}>
+            <Link className="brand-lockup" href="/" onClick={() => setMenuOpen(false)}>
+              <span>SILENCE</span>
+            </Link>
+            <button className="mobile-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
+              ✕
+            </button>
+          </div>
+          <nav className="mobile-menu-links" onClick={(e) => e.stopPropagation()}>
+            <Link href="/app" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+            <div className="mobile-menu-divider" />
+            <button onClick={toggleTheme}>
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
+            <button onClick={() => { disconnect(); setMenuOpen(false); }}>
+              Disconnect
+            </button>
+          </nav>
+        </div>
+      )}
+
       <nav className="app-nav">
         <Link className="brand-lockup" href="/">
           <span>SILENCE</span>
@@ -281,8 +312,21 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
           <span className="status-pill">Devnet</span>
           <span className="status-pill">Tokens {formatTokenBalance(state.tokenBalance)}</span>
           <span className="status-pill">{publicKey ? shortenAddress(publicKey.toBase58()) : "Wallet"}</span>
+          <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
           <button className="button dark compact" onClick={disconnect}>Disconnect</button>
         </div>
+        <button
+          className={`hamburger-btn${menuOpen ? " open" : ""}`}
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+        >
+          <span className="bar" />
+          <span className="bar" />
+          <span className="bar" />
+        </button>
       </nav>
 
       <section className="setup-page">
@@ -290,11 +334,19 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
           <p className="hero-kicker">Setup step {stepNumber} / 04</p>
           <h1>Payroll setup</h1>
           <div className="setup-steps">
-            {(["mint", "organization", "definitions", "deposit"] as const).map((step, index) => (
-              <Link className={currentStep === step ? "active" : ""} href={setupRoutes[step]} key={step}>
-                {String(index + 1).padStart(2, "0")} {step}
-              </Link>
-            ))}
+            {(["mint", "organization", "definitions", "deposit"] as const).map((step, index) => {
+              const isAdminStep = step === "definitions" && !isDeployer;
+              return (
+                <Link
+                  className={`${currentStep === step ? "active" : ""} ${isAdminStep ? "step-admin" : ""}`}
+                  href={setupRoutes[step]}
+                  key={step}
+                  tabIndex={isAdminStep ? -1 : undefined}
+                >
+                  {String(index + 1).padStart(2, "0")} {step}{isAdminStep ? " (platform)" : ""}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -351,7 +403,7 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
                   <div>
                     <span>Connected wallet</span>
                     <strong className={publicKey && publicKey.toBase58() === mxeAuthority ? "success-line" : "alert-inline"}>
-                      {publicKey ? shortenAddress(publicKey.toBase58()) : "—"}
+                      {publicKey ? shortenAddress(publicKey.toBase58()) : "N/A"}
                       {publicKey && publicKey.toBase58() !== mxeAuthority ? " ✗ wrong wallet" : publicKey ? " ✓" : ""}
                     </strong>
                   </div>
@@ -376,6 +428,14 @@ export function SetupExperience({ requestedStep }: { requestedStep?: Exclude<Set
                 {busyAction === "definitions" ? "Waiting for signature" : "Initialize definitions"}
               </button>
             </div>
+          ) : null}
+
+          {shownStep === "deposit" && !state.arciumDefinitionsReady && !isDeployer ? (
+            <p className="alert neutral">
+              Arcium computation definitions have not been initialized yet. You can complete setup
+              and deposit funds, but payroll computations will not run until the platform deployer
+              initializes the Arcium circuits (step 03).
+            </p>
           ) : null}
 
           {shownStep === "deposit" ? (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTheme } from "../theme";
 import { RefreshCcw } from "lucide-react";
 import {
   ARCIUM_DEVNET_CLUSTER_OFFSET,
@@ -77,6 +78,8 @@ const appNavItems: Array<{ href: string; label: string; view: AppView }> = [
 
 export function AppExperience({ view }: { view: AppView }) {
   const { connected, connecting, publicKey, wallet, error: walletError, connect, disconnect } = usePhantomWallet();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [state, setState] = useState<AppState>(emptyState);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -325,6 +328,41 @@ export function AppExperience({ view }: { view: AppView }) {
 
   return (
     <main className="app-shell">
+      {menuOpen && (
+        <div className="mobile-menu-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-menu-header" onClick={(e) => e.stopPropagation()}>
+            <Link className="brand-lockup" href="/" onClick={() => setMenuOpen(false)}>
+              <span>SILENCE</span>
+            </Link>
+            <button className="mobile-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
+              ✕
+            </button>
+          </div>
+          <nav className="mobile-menu-links" onClick={(e) => e.stopPropagation()}>
+            {appNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={item.view === view ? "active" : ""}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="mobile-menu-divider" />
+            <button onClick={() => { refresh(); setMenuOpen(false); }}>
+              Refresh
+            </button>
+            <button onClick={toggleTheme}>
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
+            <button onClick={() => { disconnect(); setMenuOpen(false); }}>
+              Disconnect
+            </button>
+          </nav>
+        </div>
+      )}
+
       <nav className="app-nav">
         <Link className="brand-lockup" href="/">
           <span className="brand-glyph">S</span>
@@ -338,12 +376,8 @@ export function AppExperience({ view }: { view: AppView }) {
               </Link>
             ))}
           </div>
-          <span className="status-pill">
-            Devnet
-          </span>
-          <span className="status-pill">
-            Tokens {formatTokenBalance(state.tokenBalance)}
-          </span>
+          <span className="status-pill">Devnet</span>
+          <span className="status-pill">Tokens {formatTokenBalance(state.tokenBalance)}</span>
           <span className="status-pill">
             {publicKey ? shortenAddress(publicKey.toBase58()) : "Wallet"}
           </span>
@@ -351,10 +385,23 @@ export function AppExperience({ view }: { view: AppView }) {
             <RefreshCcw aria-hidden="true" size={18} />
             <span>Refresh</span>
           </button>
+          <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
           <button className="button dark compact" onClick={disconnect}>
             Disconnect
           </button>
         </div>
+        <button
+          className={`hamburger-btn${menuOpen ? " open" : ""}`}
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+        >
+          <span className="bar" />
+          <span className="bar" />
+          <span className="bar" />
+        </button>
       </nav>
 
       <section className="app-hero">
