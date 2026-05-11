@@ -960,7 +960,7 @@ input::placeholder {
   /* ── mobile nav: show hamburger, hide desktop nav items ── */
 
   .hamburger-btn {
-    display: inline-flex;
+    display: inline-flex !important;
   }
 
   .landing-nav .landing-links,
@@ -1370,4 +1370,78 @@ html[data-theme="light"] .mobile-menu-close {
 
 html[data-theme="light"] .mobile-menu-divider {
   background: rgba(17, 18, 20, 0.1);
+}
+
+/* ─── DARK THEME (landing page) ────────────────────────── */
+/* App pages are already dark by default. These rules make  */
+/* the landing page also go dark when dark mode is active.  */
+
+html[data-theme="dark"] .landing-frame {
+  background: var(--ink-2);
+  color: var(--cream);
+  border-color: rgba(243, 234, 210, 0.08);
+}
+
+html[data-theme="dark"] .hero-stage h1 {
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .hero-kicker {
+  color: var(--muted-light);
+}
+
+html[data-theme="dark"] .hero-copy {
+  color: var(--cream);
+  opacity: 0.7;
+}
+
+html[data-theme="dark"] .landing-links a {
+  border-color: rgba(243, 234, 210, 0.3);
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .landing-links a:hover {
+  background: rgba(243, 234, 210, 0.1);
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .landing-nav .nav-cta {
+  background: rgba(243, 234, 210, 0.1);
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .hero-card {
+  background: rgba(243, 234, 210, 0.04);
+  border-color: rgba(243, 234, 210, 0.1);
+}
+
+html[data-theme="dark"] .landing-info {
+  background: #0a0a0c;
+}
+
+html[data-theme="dark"] .landing-info > div {
+  background: var(--ink-2);
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .landing-info > div:nth-child(even) {
+  background: #0e0e11;
+  border-color: rgba(243, 234, 210, 0.08);
+}
+
+html[data-theme="dark"] .landing-info h2 {
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .landing-info p {
+  color: var(--cream);
+}
+
+html[data-theme="dark"] .button.neon {
+  background: var(--cream);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .landing-shell {
+  background: #0a0a0c;
 }
