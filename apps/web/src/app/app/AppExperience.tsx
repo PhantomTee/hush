@@ -87,6 +87,8 @@ export function AppExperience({ view }: { view: AppView }) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [queuedComputations, setQueuedComputations] = useState<Record<string, QueuePayrollComputationResult>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  // Batch payroll: per-employee pay line inputs keyed by employeeId
+  const [batchLines, setBatchLines] = useState<Record<string, { grossPay: string; bonus: string; deductions: string; adjustments: string }>>({});
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
 
@@ -202,26 +204,97 @@ export function AppExperience({ view }: { view: AppView }) {
     );
   }
 
+  function updateBatchLine(employeeId: string, field: "grossPay" | "bonus" | "deductions" | "adjustments", value: string) {
+    setBatchLines((prev) => ({
+      ...prev,
+      [employeeId]: { grossPay: "0", bonus: "0", deductions: "0", adjustments: "0", ...prev[employeeId], [field]: value },
+    }));
+  }
+
   async function queuePayrollComputation(event: FormEvent<HTMLFormElement>, run: PayrollRun) {
     event.preventDefault();
     if (!client || !state.organization) return;
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
+
+    // Sum all employee batch lines into aggregate totals for the Arcium computation
+    const totals = state.employees.reduce(
+      (acc, emp) => {
+        const line = batchLines[emp.id] ?? { grossPay: "0", bonus: "0", deductions: "0", adjustments: "0" };
+        return {
+          grossPay:    acc.grossPay    + (parseFloat(line.grossPay)    || 0),
+          bonus:       acc.bonus       + (parseFloat(line.bonus)       || 0),
+          deductions:  acc.deductions  + (parseFloat(line.deductions)  || 0),
+          adjustments: acc.adjustments + (parseFloat(line.adjustments) || 0),
+        };
+      },
+      { grossPay: 0, bonus: 0, deductions: 0, adjustments: 0 }
+    );
+
     await runAction("queue", async () => {
       const result = await client.queuePayrollComputation({
         organization: state.organizationAddress,
         payrollRun: run.id,
         batchHash: run.batchHash,
-        grossPayUi: readAmount(form, "grossPay"),
-        bonusUi: readAmount(form, "bonus"),
-        deductionsUi: readAmount(form, "deductions"),
-        adjustmentsUi: readAmount(form, "adjustments")
+        grossPayUi:    totals.grossPay,
+        bonusUi:       totals.bonus,
+        deductionsUi:  totals.deductions,
+        adjustmentsUi: totals.adjustments,
       });
       saveComputation(`prepare:${run.id}`, result);
-      setNotice(`Queued prepare computation ${shortenAddress(result.computationAccount)}. Await finalization next.`);
+      setNotice(`Queued prepare computation for ${state.employees.length} employee(s). Await finalization next.`);
       return result;
     });
-    formElement.reset();
+  }
+
+  async function createAllPayouts(run: PayrollRun) {
+    if (!client || !state.organization) return;
+    setBusyAction("payout-all");
+    setError(null);
+    setNotice(null);
+    try {
+      let created = 0;
+      for (const employee of state.employees) {
+        const exists = run.payouts.some((p) => p.employeeWallet === employee.wallet);
+        if (exists) continue;
+        const tx = await client.createPayrollPayout({
+          organization: state.organizationAddress,
+          payrollRun: run.id,
+          employee: employee.id,
+        });
+        if (tx) setTransactions((items) => [tx, ...items]);
+        created++;
+      }
+      await refresh();
+      setNotice(`Created ${created} payout record(s).`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create payouts.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function queueAllSeals(run: PayrollRun) {
+    if (!client || !state.organization) return;
+    setBusyAction("seal-all");
+    setError(null);
+    setNotice(null);
+    const pending = run.payouts.filter((p) => p.status === "Pending");
+    try {
+      for (const payout of pending) {
+        const result = await client.queueSealEmployeePaystub({
+          organization: state.organizationAddress,
+          payrollRun: run.id,
+          payout: payout.id,
+        });
+        saveComputation(`seal:${payout.id}`, result);
+        setTransactions((items) => [{ signature: result.signature, explorerUrl: result.explorerUrl }, ...items]);
+      }
+      await refresh();
+      setNotice(`Queued seal for ${pending.length} paystub(s). Await finalization for each below.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to queue paystub seals.");
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   async function queueValidation(run: PayrollRun) {
@@ -605,24 +678,39 @@ export function AppExperience({ view }: { view: AppView }) {
                 {run.computationId ? <p className="muted">Computation {shortenAddress(run.computationId)}</p> : null}
                 {run.status === "Draft" ? (
                   <form className="form-grid compact-form" onSubmit={(event) => queuePayrollComputation(event, run)}>
-                    <div className="split-fields">
-                      <Field label="Gross pay">
-                        <input name="grossPay" required min="0" step="0.000001" type="number" placeholder="1000" />
-                      </Field>
-                      <Field label="Bonus">
-                        <input name="bonus" required min="0" step="0.000001" type="number" placeholder="0" />
-                      </Field>
-                    </div>
-                    <div className="split-fields">
-                      <Field label="Deductions">
-                        <input name="deductions" required min="0" step="0.000001" type="number" placeholder="0" />
-                      </Field>
-                      <Field label="Adjustments">
-                        <input name="adjustments" required min="0" step="0.000001" type="number" placeholder="0" />
-                      </Field>
-                    </div>
-                    <button className="button neon" disabled={busyAction === "queue"}>
-                      Queue Arcium computation
+                    {state.employees.length === 0 ? (
+                      <p className="muted">Add employees before queuing a payroll computation.</p>
+                    ) : (
+                      <div className="batch-table-wrapper">
+                        <table className="batch-table">
+                          <thead>
+                            <tr>
+                              <th>Employee</th>
+                              <th>Gross pay</th>
+                              <th>Bonus</th>
+                              <th>Deductions</th>
+                              <th>Adjustments</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {state.employees.map((emp) => {
+                              const line = batchLines[emp.id] ?? { grossPay: "", bonus: "0", deductions: "0", adjustments: "0" };
+                              return (
+                                <tr key={emp.id}>
+                                  <td title={emp.wallet}>{shortenAddress(emp.wallet)}</td>
+                                  <td><input type="number" min="0" step="0.000001" required placeholder="1000" value={line.grossPay} onChange={(e) => updateBatchLine(emp.id, "grossPay", e.target.value)} /></td>
+                                  <td><input type="number" min="0" step="0.000001" required placeholder="0" value={line.bonus} onChange={(e) => updateBatchLine(emp.id, "bonus", e.target.value)} /></td>
+                                  <td><input type="number" min="0" step="0.000001" required placeholder="0" value={line.deductions} onChange={(e) => updateBatchLine(emp.id, "deductions", e.target.value)} /></td>
+                                  <td><input type="number" min="0" step="0.000001" required placeholder="0" value={line.adjustments} onChange={(e) => updateBatchLine(emp.id, "adjustments", e.target.value)} /></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <button className="button neon" disabled={busyAction === "queue" || state.employees.length === 0}>
+                      {busyAction === "queue" ? "Waiting for signature" : `Queue Arcium computation (${state.employees.length} employee${state.employees.length === 1 ? "" : "s"})`}
                     </button>
                   </form>
                 ) : null}
@@ -643,11 +731,28 @@ export function AppExperience({ view }: { view: AppView }) {
                 ) : null}
                 {run.status === "Validated" ? (
                   <div className="button-row">
-                    {state.employees.map((employee) => (
-                      <button className="button dark" key={employee.id} type="button" disabled={busyAction === "payout"} onClick={() => createPayout(employee.id, run)}>
-                        Create payout {shortenAddress(employee.wallet)}
-                      </button>
-                    ))}
+                    <button
+                      className="button neon"
+                      type="button"
+                      disabled={busyAction === "payout-all"}
+                      onClick={() => createAllPayouts(run)}
+                    >
+                      {busyAction === "payout-all" ? "Creating payouts..." : `Create all payouts (${state.employees.length})`}
+                    </button>
+                  </div>
+                ) : null}
+                {run.payouts.length > 0 && run.payouts.some((p) => p.status === "Pending") ? (
+                  <div className="button-row">
+                    <button
+                      className="button neon"
+                      type="button"
+                      disabled={busyAction === "seal-all"}
+                      onClick={() => queueAllSeals(run)}
+                    >
+                      {busyAction === "seal-all"
+                        ? "Queuing seals..."
+                        : `Queue all paystub seals (${run.payouts.filter((p) => p.status === "Pending").length})`}
+                    </button>
                   </div>
                 ) : null}
                 {run.payouts.map((payout) => (
@@ -657,7 +762,7 @@ export function AppExperience({ view }: { view: AppView }) {
                       <strong>{payout.status}</strong>
                     </div>
                     {payout.status === "Pending" ? (
-                      <button className="button neon" type="button" disabled={busyAction === "seal"} onClick={() => queueSeal(run, payout.id)}>
+                      <button className="button dark" type="button" disabled={busyAction === "seal"} onClick={() => queueSeal(run, payout.id)}>
                         Queue paystub seal
                       </button>
                     ) : null}

@@ -1331,6 +1331,91 @@ html[data-theme="light"] .alert {
   border-color: rgba(200, 50, 30, 0.2);
 }
 
+/* ─── BATCH PAYROLL TABLE ───────────────────────────────── */
+
+.batch-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1.5px solid var(--line-light);
+}
+
+.batch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.batch-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  border-bottom: 1.5px solid var(--line-light);
+  white-space: nowrap;
+}
+
+.batch-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(243, 234, 210, 0.06);
+  vertical-align: middle;
+}
+
+.batch-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.batch-table input {
+  width: 100%;
+  min-width: 90px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-light);
+  background: rgba(243, 234, 210, 0.05);
+  color: inherit;
+}
+
+.batch-table input:focus {
+  outline: none;
+  border-color: rgba(243, 234, 210, 0.4);
+  background: rgba(243, 234, 210, 0.08);
+}
+
+html[data-theme="light"] .batch-table-wrapper {
+  border-color: rgba(17, 18, 20, 0.12);
+}
+
+html[data-theme="light"] .batch-table td {
+  border-color: rgba(17, 18, 20, 0.06);
+}
+
+html[data-theme="light"] .batch-table input {
+  background: rgba(17, 18, 20, 0.04);
+  border-color: rgba(17, 18, 20, 0.18);
+  color: var(--ink);
+}
+
+html[data-theme="light"] .batch-table input:focus {
+  border-color: rgba(17, 18, 20, 0.5);
+}
+
+/* ─── EMPLOYEE PORTAL ───────────────────────────────────── */
+
+.paystub-sealed {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.employee-portal-share-hint {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-top: 8px;
+  word-break: break-all;
+}
+
 html[data-theme="light"] .alert.neutral,
 html[data-theme="light"] .loading-row {
   background: rgba(17, 18, 20, 0.05);

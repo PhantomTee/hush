@@ -28,6 +28,7 @@ export default function LandingPage() {
             <a href="#about" onClick={() => setMenuOpen(false)}>Our work</a>
             <a href="#price" onClick={() => setMenuOpen(false)}>What we do</a>
             <a href="#why-us" onClick={() => setMenuOpen(false)}>Why us</a>
+            <Link href="/employee" onClick={() => setMenuOpen(false)}>Employee portal</Link>
             <div className="mobile-menu-divider" />
             {connected ? (
               <Link href="/app" onClick={() => setMenuOpen(false)}>Enter app</Link>
@@ -53,6 +54,7 @@ export default function LandingPage() {
             <a href="#program">Our work</a>
             <a href="#price">What we do</a>
             <a href="#why-us">Why us</a>
+            <Link href="/employee">Employee portal</Link>
           </div>
           <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
             {theme === "dark" ? "Light" : "Dark"}
