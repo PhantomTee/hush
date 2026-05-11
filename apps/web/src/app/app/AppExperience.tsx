@@ -89,6 +89,11 @@ export function AppExperience({ view }: { view: AppView }) {
   const [notice, setNotice] = useState<string | null>(null);
   // Batch payroll: per-employee pay line inputs keyed by employeeId
   const [batchLines, setBatchLines] = useState<Record<string, { grossPay: string; bonus: string; deductions: string; adjustments: string }>>({});
+  // Run management: hidden run IDs (archived client-side, persisted to localStorage)
+  const [hiddenRuns, setHiddenRuns] = useState<Set<string>>(new Set());
+  const [showArchived, setShowArchived] = useState(false);
+  // Share portal: clipboard copy feedback
+  const [copiedPortal, setCopiedPortal] = useState(false);
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
 
@@ -101,6 +106,35 @@ export function AppExperience({ view }: { view: AppView }) {
         try { localStorage.setItem(`silence:computations:${publicKey.toBase58()}`, JSON.stringify(next)); } catch {}
       }
       return next;
+    });
+  }
+
+  function archiveRun(runId: string) {
+    setHiddenRuns((prev) => {
+      const next = new Set([...prev, runId]);
+      if (publicKey) {
+        try { localStorage.setItem(`silence:hidden-runs:${publicKey.toBase58()}`, JSON.stringify([...next])); } catch {}
+      }
+      return next;
+    });
+  }
+
+  function restoreRun(runId: string) {
+    setHiddenRuns((prev) => {
+      const next = new Set([...prev].filter((id) => id !== runId));
+      if (publicKey) {
+        try { localStorage.setItem(`silence:hidden-runs:${publicKey.toBase58()}`, JSON.stringify([...next])); } catch {}
+      }
+      return next;
+    });
+  }
+
+  function copyPortalLink() {
+    if (!state.organizationAddress) return;
+    const url = `${window.location.origin}/employee?org=${state.organizationAddress}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedPortal(true);
+      setTimeout(() => setCopiedPortal(false), 2000);
     });
   }
 
@@ -131,15 +165,18 @@ export function AppExperience({ view }: { view: AppView }) {
     }
   }, [client]);
 
-  // Reload persisted computation offsets whenever the wallet changes
+  // Reload persisted computation offsets and hidden runs whenever the wallet changes
   useEffect(() => {
     if (!connected || !publicKey) return;
+    const key = publicKey.toBase58();
     try {
-      const saved = localStorage.getItem(`silence:computations:${publicKey.toBase58()}`);
-      setQueuedComputations(saved ? JSON.parse(saved) : {});
-    } catch {
-      setQueuedComputations({});
-    }
+      const savedComps = localStorage.getItem(`silence:computations:${key}`);
+      setQueuedComputations(savedComps ? JSON.parse(savedComps) : {});
+    } catch { setQueuedComputations({}); }
+    try {
+      const savedHidden = localStorage.getItem(`silence:hidden-runs:${key}`);
+      setHiddenRuns(savedHidden ? new Set(JSON.parse(savedHidden)) : new Set());
+    } catch { setHiddenRuns(new Set()); }
   }, [connected, publicKey]);
 
   useEffect(() => {
@@ -557,11 +594,17 @@ export function AppExperience({ view }: { view: AppView }) {
                   <strong>{shortenAddress(state.organization.usdcMint)}</strong>
                 </div>
               </div>
-              {!state.arciumDefinitionsReady ? (
-                <Link className="button dark" href="/app/setup">
-                  Continue setup
-                </Link>
-              ) : null}
+              <div className="button-row">
+                {state.arciumDefinitionsReady ? (
+                  <button className="button neon" type="button" onClick={copyPortalLink}>
+                    {copiedPortal ? "Link copied!" : "Share employee portal"}
+                  </button>
+                ) : (
+                  <Link className="button dark" href="/app/setup">
+                    Continue setup
+                  </Link>
+                )}
+              </div>
             </div>
           ) : (
             <div className="empty-action">
@@ -642,8 +685,21 @@ export function AppExperience({ view }: { view: AppView }) {
           <div className="panel-heading">
             <div>
               <h2>Payroll runs</h2>
-              <p>{state.payrollRuns.length ? `${state.payrollRuns.length} runs found.` : "No payroll runs found. Create a run after adding employees."}</p>
+              <p>
+                {state.payrollRuns.length
+                  ? `${state.payrollRuns.filter((r) => !hiddenRuns.has(r.id)).length} active run(s)${hiddenRuns.size > 0 ? `, ${hiddenRuns.size} archived` : ""}.`
+                  : "No payroll runs found. Create a run after adding employees."}
+              </p>
             </div>
+            {hiddenRuns.size > 0 ? (
+              <button
+                className="button dark compact"
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+              >
+                {showArchived ? "Hide archived" : `Show archived (${hiddenRuns.size})`}
+              </button>
+            ) : null}
           </div>
           <form className="form-grid" onSubmit={createPayrollRun}>
             <div className="split-fields">
@@ -669,11 +725,25 @@ export function AppExperience({ view }: { view: AppView }) {
             </div>
           </form>
           <div className="record-list">
-            {state.payrollRuns.map((run) => (
-              <div className="record-stack" key={run.id}>
+            {state.payrollRuns
+              .filter((run) => showArchived || !hiddenRuns.has(run.id))
+              .map((run) => {
+              const isArchived = hiddenRuns.has(run.id);
+              return (
+              <div className={`record-stack${isArchived ? " run-archived" : ""}`} key={run.id}>
                 <div className="record-row">
                   <span>{shortenAddress(run.id)}</span>
-                  <strong>{run.status}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <strong>{run.status}</strong>
+                    <button
+                      className="run-archive-btn"
+                      type="button"
+                      title={isArchived ? "Restore run" : "Archive run"}
+                      onClick={() => isArchived ? restoreRun(run.id) : archiveRun(run.id)}
+                    >
+                      {isArchived ? "Restore" : "Archive"}
+                    </button>
+                  </div>
                 </div>
                 {run.computationId ? <p className="muted">Computation {shortenAddress(run.computationId)}</p> : null}
                 {run.status === "Draft" ? (
@@ -779,7 +849,8 @@ export function AppExperience({ view }: { view: AppView }) {
                   </button>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
         </article>
         ) : null}

@@ -1402,11 +1402,45 @@ html[data-theme="light"] .batch-table input:focus {
   border-color: rgba(17, 18, 20, 0.5);
 }
 
+/* ─── RUN MANAGEMENT ────────────────────────────────────── */
+
+.run-archive-btn {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(243, 234, 210, 0.2);
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 130ms;
+  flex-shrink: 0;
+}
+
+.run-archive-btn:hover {
+  opacity: 1;
+}
+
+.run-archived {
+  opacity: 0.4;
+}
+
 /* ─── EMPLOYEE PORTAL ───────────────────────────────────── */
 
 .paystub-sealed {
   font-size: 12px;
   letter-spacing: 0.04em;
+}
+
+.paystub-encryption-note {
+  font-size: 11px;
+  opacity: 0.5;
+  margin: 6px 0 4px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .employee-portal-share-hint {

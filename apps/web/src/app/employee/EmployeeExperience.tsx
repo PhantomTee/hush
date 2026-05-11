@@ -257,16 +257,32 @@ export function EmployeeExperience() {
                   <div>
                     <span>Net pay</span>
                     <strong className="paystub-sealed">
-                      {payout.encryptedNetPay ? "🔒 Sealed by Arcium" : "Pending"}
+                      {payout.encryptedNetPay
+                        ? "🔒 Sealed by Arcium MXE"
+                        : "Pending Arcium computation"}
                     </strong>
                   </div>
-                  {payout.status === "Paid" ? (
-                    <div>
-                      <span>Payment</span>
-                      <strong className="success-line">Tokens transferred</strong>
-                    </div>
-                  ) : null}
+                  <div>
+                    <span>Payout status</span>
+                    <strong className={payout.status === "Paid" ? "success-line" : payout.status === "Failed" ? "alert-inline" : ""}>
+                      {payout.status === "Paid" ? "✓ Tokens transferred to your wallet" : payout.status}
+                    </strong>
+                  </div>
                 </div>
+                {payout.encryptedNetPay ? (
+                  <p className="paystub-encryption-note">
+                    Your net pay amount was computed inside Arcium's secure enclave and sealed to your wallet address.
+                    The amount is never visible in plaintext on-chain.
+                  </p>
+                ) : null}
+                <a
+                  className="tx-link"
+                  href={`https://explorer.solana.com/address/${run.id}?cluster=devnet`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Verify run on Solana Explorer
+                </a>
               </div>
             ))}
           </div>
