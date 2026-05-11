@@ -242,10 +242,10 @@ export function AppExperience({ view }: { view: AppView }) {
   }
 
   function updateBatchLine(employeeId: string, field: "grossPay" | "bonus" | "deductions" | "adjustments", value: string) {
-    setBatchLines((prev) => ({
-      ...prev,
-      [employeeId]: { grossPay: "0", bonus: "0", deductions: "0", adjustments: "0", ...prev[employeeId], [field]: value },
-    }));
+    setBatchLines((prev) => {
+      const existing = prev[employeeId] ?? { grossPay: "", bonus: "0", deductions: "0", adjustments: "0" };
+      return { ...prev, [employeeId]: { ...existing, [field]: value } };
+    });
   }
 
   async function queuePayrollComputation(event: FormEvent<HTMLFormElement>, run: PayrollRun) {
