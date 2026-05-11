@@ -94,6 +94,18 @@ export function AppExperience({ view }: { view: AppView }) {
   const [showArchived, setShowArchived] = useState(false);
   // Share portal: clipboard copy feedback
   const [copiedPortal, setCopiedPortal] = useState(false);
+  // Track computations that failed in Arcium MXE so the UI can surface clear guidance
+  const [failedComputations, setFailedComputations] = useState<Set<string>>(new Set());
+
+  function markComputationFailed(stage: string) {
+    setFailedComputations((prev) => {
+      const next = new Set([...prev, stage]);
+      if (publicKey) {
+        try { localStorage.setItem(`silence:failed-computations:${publicKey.toBase58()}`, JSON.stringify([...next])); } catch {}
+      }
+      return next;
+    });
+  }
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
 
@@ -177,6 +189,10 @@ export function AppExperience({ view }: { view: AppView }) {
       const savedHidden = localStorage.getItem(`silence:hidden-runs:${key}`);
       setHiddenRuns(savedHidden ? new Set(JSON.parse(savedHidden)) : new Set());
     } catch { setHiddenRuns(new Set()); }
+    try {
+      const savedFailed = localStorage.getItem(`silence:failed-computations:${key}`);
+      setFailedComputations(savedFailed ? new Set(JSON.parse(savedFailed)) : new Set());
+    } catch { setFailedComputations(new Set()); }
   }, [connected, publicKey]);
 
   useEffect(() => {
@@ -392,7 +408,11 @@ export function AppExperience({ view }: { view: AppView }) {
       setNotice(`Arcium finalized this stage. Payroll run is now ${result.payrollRun.status}.`);
       await refresh();
     } catch (finalizeError) {
-      setError(finalizeError instanceof Error ? finalizeError.message : "Unable to await Arcium finalization.");
+      markComputationFailed(stage);
+      setError(
+        `Arcium computation failed: ${finalizeError instanceof Error ? finalizeError.message : "Unknown error"}. ` +
+        "Archive this run and create a fresh payroll run to try again."
+      );
     } finally {
       setBusyAction(null);
     }
@@ -785,9 +805,13 @@ export function AppExperience({ view }: { view: AppView }) {
                   </form>
                 ) : null}
                 {run.status === "Preparing" ? (
-                  <button className="button dark" type="button" disabled={busyAction === `finalize:prepare:${run.id}`} onClick={() => awaitFinalization(run, `prepare:${run.id}`)}>
-                    Await prepare finalization
-                  </button>
+                  failedComputations.has(`prepare:${run.id}`) ? (
+                    <p className="alert-inline">Arcium computation failed. Archive this run and create a new payroll run.</p>
+                  ) : (
+                    <button className="button dark" type="button" disabled={busyAction === `finalize:prepare:${run.id}`} onClick={() => awaitFinalization(run, `prepare:${run.id}`)}>
+                      {busyAction === `finalize:prepare:${run.id}` ? "Waiting for Arcium..." : "Await prepare finalization"}
+                    </button>
+                  )
                 ) : null}
                 {run.status === "Prepared" ? (
                   <button className="button neon" type="button" disabled={busyAction === "validate"} onClick={() => queueValidation(run)}>
@@ -795,9 +819,13 @@ export function AppExperience({ view }: { view: AppView }) {
                   </button>
                 ) : null}
                 {run.status === "Validating" ? (
-                  <button className="button dark" type="button" disabled={busyAction === `finalize:validate:${run.id}`} onClick={() => awaitFinalization(run, `validate:${run.id}`)}>
-                    Await validation finalization
-                  </button>
+                  failedComputations.has(`validate:${run.id}`) ? (
+                    <p className="alert-inline">Arcium validation computation failed. Archive this run and create a new payroll run.</p>
+                  ) : (
+                    <button className="button dark" type="button" disabled={busyAction === `finalize:validate:${run.id}`} onClick={() => awaitFinalization(run, `validate:${run.id}`)}>
+                      {busyAction === `finalize:validate:${run.id}` ? "Waiting for Arcium..." : "Await validation finalization"}
+                    </button>
+                  )
                 ) : null}
                 {run.status === "Validated" ? (
                   <div className="button-row">
