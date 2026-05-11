@@ -90,6 +90,18 @@ export function AppExperience({ view }: { view: AppView }) {
 
   const client = useMemo(() => (wallet ? new SilenceDevnetClient(wallet, { rpcUrl: SILENCE_DEVNET_RPC }) : null), [wallet]);
 
+  // Persist computation offsets to localStorage so they survive page refreshes.
+  // Keyed by wallet address so different wallets don't share state.
+  function saveComputation(key: string, result: QueuePayrollComputationResult) {
+    setQueuedComputations((prev) => {
+      const next = { ...prev, [key]: result };
+      if (publicKey) {
+        try { localStorage.setItem(`silence:computations:${publicKey.toBase58()}`, JSON.stringify(next)); } catch {}
+      }
+      return next;
+    });
+  }
+
   const refresh = useCallback(async () => {
     if (!client) return;
     setLoadState("loading");
@@ -117,9 +129,15 @@ export function AppExperience({ view }: { view: AppView }) {
     }
   }, [client]);
 
+  // Reload persisted computation offsets whenever the wallet changes
   useEffect(() => {
     if (!connected || !publicKey) return;
-    setQueuedComputations({});
+    try {
+      const saved = localStorage.getItem(`silence:computations:${publicKey.toBase58()}`);
+      setQueuedComputations(saved ? JSON.parse(saved) : {});
+    } catch {
+      setQueuedComputations({});
+    }
   }, [connected, publicKey]);
 
   useEffect(() => {
@@ -199,7 +217,7 @@ export function AppExperience({ view }: { view: AppView }) {
         deductionsUi: readAmount(form, "deductions"),
         adjustmentsUi: readAmount(form, "adjustments")
       });
-      setQueuedComputations((items) => ({ ...items, [`prepare:${run.id}`]: result }));
+      saveComputation(`prepare:${run.id}`, result);
       setNotice(`Queued prepare computation ${shortenAddress(result.computationAccount)}. Await finalization next.`);
       return result;
     });
@@ -214,7 +232,7 @@ export function AppExperience({ view }: { view: AppView }) {
         payrollRun: run.id,
         vault: state.vaultAddress
       });
-      setQueuedComputations((items) => ({ ...items, [`validate:${run.id}`]: result }));
+      saveComputation(`validate:${run.id}`, result);
       setNotice(`Queued validation computation ${shortenAddress(result.computationAccount)}.`);
       return result;
     });
@@ -239,7 +257,7 @@ export function AppExperience({ view }: { view: AppView }) {
         payrollRun: run.id,
         payout: payoutId
       });
-      setQueuedComputations((items) => ({ ...items, [`seal:${payoutId}`]: result }));
+      saveComputation(`seal:${payoutId}`, result);
       setNotice(`Queued paystub seal computation ${shortenAddress(result.computationAccount)}.`);
       return result;
     });
@@ -249,7 +267,7 @@ export function AppExperience({ view }: { view: AppView }) {
     if (!client) return;
     const queued = queuedComputations[stage];
     if (!queued) {
-      setNotice("This computation was not queued in this browser session, so its offset is unavailable here. Queue the next stage from this session or use the transaction logs.");
+      setNotice("Computation offset not found. Try re-queuing this stage — the previous queue transaction may not have been captured.");
       return;
     }
     setBusyAction(`finalize:${stage}`);
